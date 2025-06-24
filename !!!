@@ -1,0 +1,127 @@
+///Переименуй переменные и функции, а то убью 
+#include <iostream>
+#include <fstream>
+#include <cmath>
+#include <iomanip>
+#include <string>
+#include <vector>
+
+using namespace std;
+
+struct Point {
+    double x;
+    double y;
+};
+
+// Функция для поиска всех точек пересечения
+vector<Point> findIntersections(double a, double b, double step) {
+    vector<Point> intersections;
+
+    // Проверяем все возможные комбинации знаков x и y
+    for (int x_sign = -1; x_sign <= 1; x_sign += 2) {
+        for (int y_sign = -1; y_sign <= 1; y_sign += 2) {
+            for (double x = step; x <= 10.0; x += step) {
+                double x_val = x_sign * x;
+                double y1 = a * x_val * x_val;
+
+                // Проверяем возможность вычисления y2
+                if (x_val / b < 0) continue;
+
+                double y2 = y_sign * sqrt(abs(x_val / b));
+
+                if (fabs(y1 - y2) < step) {
+                    intersections.push_back({ x_val, y1 });
+                }
+            }
+        }
+    }
+
+    return intersections;
+}
+
+double calculateArea(double start, double end, double step,
+    double (*func)(double, double), double param) {
+    double area = 0.0;
+    for (double x = start; x < end; x += step) {
+        double y = func(x, param);
+        if (!isnan(y)) {
+            area += y * step;
+        }
+    }
+    return area;
+}
+
+double parabola1(double x, double a) {
+    return a * x * x;
+}
+
+double parabola2(double x, double b) {
+    if (x / b < 0) return NAN;
+    return sqrt(abs(x / b));
+}
+
+int main() {
+    setlocale(LC_ALL, "RU");
+
+    ifstream inputFile("data.txt");
+    if (!inputFile.is_open()) {
+        cerr << "Ошибка: не удалось открыть файл data.txt" << endl;
+        return 1;
+    }
+
+    double a, b;
+    string line;
+
+    getline(inputFile, line);
+    size_t eq1 = line.find('=');
+    size_t eq2 = line.find('=', eq1 + 1);
+
+    if (eq1 == string::npos || eq2 == string::npos) {
+        cerr << "Ошибка: неправильный формат файла" << endl;
+        return 1;
+    }
+    a = stod(line.substr(eq1 + 1));
+    b = stod(line.substr(eq2 + 1));
+
+    inputFile.close();
+
+    double step;
+    cout << "Введите шаг для вычислений (рекомендуется 0.0001-0.00001): ";
+    cin >> step;
+
+    if (step <= 0) {
+        cerr << "Ошибка: шаг должен быть положительным" << endl;
+        return 1;
+    }
+
+    vector<Point> intersections = findIntersections(a, b, step);
+
+    if (intersections.empty()) {
+        cout << "Параболы не пересекаются (кроме точки (0,0))" << endl;
+    }
+    else {
+        cout << fixed << setprecision(6);
+        for (size_t i = 0; i < intersections.size(); ++i) {
+            Point p = intersections[i];
+            cout << "\nТочка пересечения " << i + 1 << ": (" << p.x << ", " << p.y << ")" << endl;
+
+            // Вычисляем площади для каждого квадранта отдельно
+            double x_start = 0;
+            double x_end = p.x;
+
+            if (x_end < 0) {
+                swap(x_start, x_end);
+            }
+
+            double S1 = calculateArea(x_start, x_end, step, parabola1, a);
+            double S2 = calculateArea(x_start, x_end, step, parabola2, b);
+            double S = fabs(S1 - S2);
+
+            cout << "Площадь S1 (под y=ax^2): " << S1 << endl;
+            cout << "Площадь S2 (под x=by^2): " << S2 << endl;
+            cout << "Итоговая площадь S = |S1 - S2|: " << S << endl;
+        }
+    }
+
+    return 0;
+}
